@@ -1,0 +1,256 @@
+<html ng-app="myapp">
+<head>
+	<!-- jquery -->
+	<!-- Firebase -->
+		<script type='text/javascript' src='https://cdn.firebase.com/v0/firebase.js'></script>
+		
+		<!-- jquery -->
+		<script src="https://ajax.googleapis.com/ajax/libs/jquery/1.10.2/jquery.min.js"></script>
+		
+		<!-- Leaflet -->
+		<script src="http://cdn.leafletjs.com/leaflet-0.6.4/leaflet.js"></script>
+		<link rel="stylesheet" href="http://cdn.leafletjs.com/leaflet-0.6.4/leaflet.css" />
+		
+		<!-- bootstrap -->
+		<link rel="stylesheet" type="text/css" href="css/bootstrap.min.css"/>
+		<link rel="stylesheet" type="text/css" href="css/bootstrap-theme.min.css"/>
+		<script type='text/javascript' src='js/bootstrap.min.js'></script>
+		
+		<!-- angularjs -->
+		<script src="http://ajax.googleapis.com/ajax/libs/angularjs/1.2.0/angular.min.js"></script>
+		
+		<!-- angular slider -->
+		<link rel="stylesheet" type="text/css" href="css/angular-slider.min.css"/>
+		<script type='text/javascript' src='js/angular-slider.min.js'></script>
+		
+		<!-- spinner -->
+		<script type='text/javascript' src='js/spin.min.js'></script>
+		<script type='text/javascript' src='js/jquery.spin.js'></script>
+		
+		<!-- local css -->
+		<link rel="stylesheet" type="text/css" href="css/main.css"/>
+		
+		<!-- console library -->
+		<script type='text/javascript' src='js/ck-console.js'></script>
+		
+		<!-- cookie stuff -->
+		<script type='text/javascript' src='js/jquery.cookie.js'></script>
+		
+		<!-- Stuff for traffic/mo data -->
+		<script type='text/javascript' src='js/trafficdata.js'></script>
+		<script type='text/javascript' src='js/stations.js'></script>
+		
+		<link rel="stylesheet" type="text/css" href="css/main.css"/>
+		
+		<style>
+			.main-title {
+				text-align: center;
+				font-size: 24px;
+				margin: 0;
+				padding: 0;
+				border: 0;
+				vertical-align: baseline;
+			}
+			#header {
+				text-align: center;
+				vertical-align: middle;
+				line-height: 50px;
+				height: 52px;
+				border-bottom-width: 2px;
+				border-bottom-style: groove;
+			}
+			
+			.info-subtitle {
+				font-size: 12px;
+				color: rgb(98,111,255);
+				font-weight: bold;
+			}
+			
+			.info-info {
+				font-size: 12px;
+				display: block;
+				padding-left: 5px;
+			}
+			
+			#chart{
+				display: inline-block;
+				vertical-align: top;
+			}
+			
+			#information{
+				width: 50%;
+				display: inline-block;
+				margin-left: 20px;
+			}
+			
+			.more-info {
+				line-height: 50px;
+				height: 52px;
+				border-bottom-width: 2px;
+				border-bottom-style: groove;
+			}
+			
+			hr {
+				height: 2px;
+			}
+		</style>
+	
+	<script type='text/javascript'>
+		app = angular.module('myapp', ['ckServices']);
+		app.controller('DataCtrl', ['$scope', '$compile', 'ckConsole', 'ckConsoleMap', '$http', function($scope, $compile, ckConsole, ckConsoleMap, $http){
+			var stations;
+			var stationData;
+			var stationNumber;
+			
+			function getUrlVars() {
+				var vars = {};
+				var parts = window.location.href.replace(/[?&]+([^=&]+)=([^&]*)/gi, function(m,key,value) {
+					vars[key] = value;
+				});
+				return vars;
+			}
+			
+			function getDisplayData(data, campaign) {
+				var max = {'traffic':-1, 'time':'00:00', 'total':-1, 'date':''};
+				
+				for (var i in data) {
+					if (data[i].data && data[i].data.Date == campaign.date) {
+						max.traffic = data[i].data.Peak_Count;
+						max.time = data[i].data['Peak_Hour '];
+						max.total = data[i].data.Total_Traffic_Volume;
+						max.date = data[i].data.Date;
+						return max;
+					}
+				}
+				return max;
+			}
+			$(document).ready(function() {
+				var header = document.getElementById('header');
+				var information = document.getElementById('information');
+				var moreInfo = document.getElementById('more-info');
+				var chart = document.getElementById('chart');
+				
+				stationNumber = getUrlVars()['stationNumber'];
+				console.log("station number:" + stationNumber);
+				var removed = 0;
+				for (var i = 1; i < 27; i++) {
+					if (i != stationNumber) {
+						removed++;
+						var div = document.getElementById("chart" + i);
+						if (div) {
+							div.parentNode.removeChild(div);
+						}
+					}
+				}
+						
+				
+				var map = L.map('container');
+				ckConsoleMap.createMapLayerFromGroupData(map, ckConsole.getGroup("COSES Station Locations"), function(newLayer) {
+					stations = newLayer;
+				}).then(function (newLayer){
+					stations.eachMember(function (member, marker) {
+						if (member.birth_certificate.birthID == stationNumber) {
+							stationData = member.data;
+						}
+				});
+				
+					header.innerHTML='<span class="main-title">Station '+stationData.Station+'</span>';
+					
+					var peakInfo = getDisplayData(stationData['Boat Traffic'], allCampaigns[9]);
+					information.innerHTML=information.innerHTML+'<span><p class="info-subtitle">Date</p><p class="info-info">'+peakInfo.date+'</p><p class="info-subtitle">Peak Time</p><p class="info-info">'+peakInfo.time+'</p><p class="info-subtitle">Peak Traffic</p><p class="info-info">'+peakInfo.traffic.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",")+'</p><p class="info-subtitle">Total Traffic Volume</p><p class="info-info">'+peakInfo.total.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",")+'</p></span><hr />';
+					
+					var data = stationData['Boat Traffic'];
+					moreInfo.innerHTML = moreInfo.innerHTML + '<tr class="odd-info-popup-row"><td>Date</td><td>Peak Time</td><td>Peak Traffic</td><td>Total Volume</td></tr>';
+					console.log(moreInfo.innerHTML);
+					var num = 0;
+					for (var i in data) {
+						if (data[i].data) {
+							num++;
+							console.log(num+" "+num%2);
+							var peakInfo = getDisplayData(data, {'date':data[i].data.Date});
+							if (num%2 == 0) {
+								moreInfo.innerHTML = moreInfo.innerHTML + '<tr>';
+							} else {
+								moreInfo.innerHTML = moreInfo.innerHTML + '<tr>';
+							}
+							moreInfo.innerHTML = moreInfo.innerHTML+'<td>'+peakInfo.date+'</td><td>'+peakInfo.time+'</td><td>'+peakInfo.traffic.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",")+'</td><td>'+peakInfo.total.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",")+'</td></tr>';
+						}
+					}
+				});
+			});
+		}]);
+	</script>
+
+</head>
+<body ng-controller="DataCtrl">
+	<div id="header"></div>
+	<div id="main-content">
+		<div id="chart">
+			<div id="chart1">
+				<script type="text/javascript" src="//ajax.googleapis.com/ajax/static/modules/gviz/1.0/chart.js"> {"dataSourceUrl":"//docs.google.com/spreadsheet/tq?key=0Aly4LfnVm8JLdGQwQWxBSmtzSDdRdnl0TXJheGlqbnc&transpose=0&headers=1&range=A1%3AD33&gid=6","options":{"titleTextStyle":{"fontSize":16},"vAxes":[{"useFormatFromData":true,"title":"Left vertical axis title","minValue":null,"viewWindow":{"min":null,"max":null},"maxValue":null},{"useFormatFromData":true,"minValue":null,"viewWindow":{"min":null,"max":null},"maxValue":null}],"booleanRole":"certainty","title":"Chart title","hAxis":{"useFormatFromData":true,"title":"Horizontal axis title","minValue":null,"viewWindow":{"min":null,"max":null},"maxValue":null},"width":600,"height":371},"state":{},"view":{},"isDefaultVisualization":true,"chartType":"MotionChart","chartName":"Chart 6"} </script>
+			</div>
+			<div id="chart2">
+				<script type="text/javascript" src="//ajax.googleapis.com/ajax/static/modules/gviz/1.0/chart.js"> {"dataSourceUrl":"//docs.google.com/spreadsheet/tq?key=0Aly4LfnVm8JLdGQwQWxBSmtzSDdRdnl0TXJheGlqbnc&transpose=0&headers=1&range=A1%3AD33&gid=7","options":{"titleTextStyle":{"fontSize":16},"vAxes":[{"useFormatFromData":true,"title":"Left vertical axis title","minValue":null,"viewWindow":{"min":null,"max":null},"maxValue":null},{"useFormatFromData":true,"minValue":null,"viewWindow":{"min":null,"max":null},"maxValue":null}],"booleanRole":"certainty","title":"Chart title","hAxis":{"useFormatFromData":true,"title":"Horizontal axis title","minValue":null,"viewWindow":{"min":null,"max":null},"maxValue":null},"width":600,"height":371},"state":{},"view":{},"isDefaultVisualization":true,"chartType":"MotionChart","chartName":"Chart 7"} </script>  
+			</div>
+			<div id="chart3">
+				<script type="text/javascript" src="//ajax.googleapis.com/ajax/static/modules/gviz/1.0/chart.js"> {"dataSourceUrl":"//docs.google.com/spreadsheet/tq?key=0Aly4LfnVm8JLdGQwQWxBSmtzSDdRdnl0TXJheGlqbnc&transpose=0&headers=1&range=A1%3AD33&gid=8","options":{"titleTextStyle":{"fontSize":16},"vAxes":[{"useFormatFromData":true,"title":"Left vertical axis title","minValue":null,"viewWindow":{"min":null,"max":null},"maxValue":null},{"useFormatFromData":true,"minValue":null,"viewWindow":{"min":null,"max":null},"maxValue":null}],"booleanRole":"certainty","title":"Chart title","hAxis":{"useFormatFromData":true,"title":"Horizontal axis title","minValue":null,"viewWindow":{"min":null,"max":null},"maxValue":null},"width":600,"height":371},"state":{},"view":{},"isDefaultVisualization":true,"chartType":"MotionChart","chartName":"Chart 8"} </script>
+			</div>
+			<div id="chart4">
+				<script type="text/javascript" src="//ajax.googleapis.com/ajax/static/modules/gviz/1.0/chart.js"> {"dataSourceUrl":"//docs.google.com/spreadsheet/tq?key=0Aly4LfnVm8JLdGQwQWxBSmtzSDdRdnl0TXJheGlqbnc&transpose=0&headers=1&range=A1%3AD33&gid=9","options":{"titleTextStyle":{"fontSize":16},"vAxes":[{"useFormatFromData":true,"title":"Left vertical axis title","minValue":null,"viewWindow":{"min":null,"max":null},"maxValue":null},{"useFormatFromData":true,"minValue":null,"viewWindow":{"min":null,"max":null},"maxValue":null}],"booleanRole":"certainty","title":"Chart title","hAxis":{"useFormatFromData":true,"title":"Horizontal axis title","minValue":null,"viewWindow":{"min":null,"max":null},"maxValue":null},"width":600,"height":371},"state":{},"view":{},"isDefaultVisualization":true,"chartType":"MotionChart","chartName":"Chart 5"} </script>
+			</div>
+			<div id="chart5">
+				<script type="text/javascript" src="//ajax.googleapis.com/ajax/static/modules/gviz/1.0/chart.js"> {"dataSourceUrl":"//docs.google.com/spreadsheet/tq?key=0Aly4LfnVm8JLdGQwQWxBSmtzSDdRdnl0TXJheGlqbnc&transpose=0&headers=1&range=A1%3AD33&gid=10","options":{"titleTextStyle":{"fontSize":16},"vAxes":[{"useFormatFromData":true,"title":"Left vertical axis title","minValue":null,"viewWindow":{"min":null,"max":null},"maxValue":null},{"useFormatFromData":true,"minValue":null,"viewWindow":{"min":null,"max":null},"maxValue":null}],"booleanRole":"certainty","title":"Chart title","hAxis":{"useFormatFromData":true,"title":"Horizontal axis title","minValue":null,"viewWindow":{"min":null,"max":null},"maxValue":null},"width":600,"height":371},"state":{},"view":{},"isDefaultVisualization":true,"chartType":"MotionChart","chartName":"Chart 4"} </script>
+			</div>
+			<div id="chart6">
+				<script type="text/javascript" src="//ajax.googleapis.com/ajax/static/modules/gviz/1.0/chart.js"> {"dataSourceUrl":"//docs.google.com/spreadsheet/tq?key=0Aly4LfnVm8JLdGQwQWxBSmtzSDdRdnl0TXJheGlqbnc&transpose=0&headers=1&range=A1%3AD33&gid=11","options":{"titleTextStyle":{"fontSize":16},"vAxes":[{"useFormatFromData":true,"title":"Left vertical axis title","minValue":null,"viewWindow":{"max":null,"min":null},"maxValue":null},{"useFormatFromData":true,"minValue":null,"viewWindow":{"max":null,"min":null},"maxValue":null}],"booleanRole":"certainty","title":"Chart title","height":371,"width":600,"hAxis":{"useFormatFromData":true,"title":"Horizontal axis title","minValue":null,"viewWindow":{"max":null,"min":null},"maxValue":null},"animation":{"duration":500},"focusTarget":"series","tooltip":{"trigger":"none"}},"state":{},"view":{},"isDefaultVisualization":true,"chartType":"MotionChart","chartName":"Chart 9"} </script>
+			</div>
+			<div id="chart7">
+				<script type="text/javascript" src="//ajax.googleapis.com/ajax/static/modules/gviz/1.0/chart.js"> {"dataSourceUrl":"//docs.google.com/spreadsheet/tq?key=0Aly4LfnVm8JLdGQwQWxBSmtzSDdRdnl0TXJheGlqbnc&transpose=0&headers=1&range=A1%3AD33&gid=12","options":{"titleTextStyle":{"fontSize":16},"vAxes":[{"useFormatFromData":true,"title":"Left vertical axis title","minValue":null,"viewWindow":{"max":null,"min":null},"maxValue":null},{"useFormatFromData":true,"minValue":null,"viewWindow":{"max":null,"min":null},"maxValue":null}],"booleanRole":"certainty","title":"Chart title","height":371,"width":600,"hAxis":{"useFormatFromData":true,"title":"Horizontal axis title","minValue":null,"viewWindow":{"max":null,"min":null},"maxValue":null},"animation":{"duration":500},"focusTarget":"series","tooltip":{"trigger":"none"}},"state":{},"view":{},"isDefaultVisualization":true,"chartType":"MotionChart","chartName":"Chart 10"} </script>
+			</div>
+			<div id="chart8">
+				<script type="text/javascript" src="//ajax.googleapis.com/ajax/static/modules/gviz/1.0/chart.js"> {"dataSourceUrl":"//docs.google.com/spreadsheet/tq?key=0Aly4LfnVm8JLdGQwQWxBSmtzSDdRdnl0TXJheGlqbnc&transpose=0&headers=1&range=A1%3AD33&gid=13","options":{"titleTextStyle":{"fontSize":16},"vAxes":[{"useFormatFromData":true,"title":"Left vertical axis title","minValue":null,"viewWindow":{"max":null,"min":null},"maxValue":null},{"useFormatFromData":true,"minValue":null,"viewWindow":{"max":null,"min":null},"maxValue":null}],"booleanRole":"certainty","title":"Chart title","height":371,"width":600,"hAxis":{"useFormatFromData":true,"title":"Horizontal axis title","minValue":null,"viewWindow":{"max":null,"min":null},"maxValue":null},"animation":{"duration":500},"focusTarget":"series","tooltip":{"trigger":"none"}},"state":{},"view":{},"isDefaultVisualization":true,"chartType":"MotionChart","chartName":"Chart 11"} </script>
+			</div>
+			<div id="chart9">
+				<script type="text/javascript" src="//ajax.googleapis.com/ajax/static/modules/gviz/1.0/chart.js"> {"dataSourceUrl":"//docs.google.com/spreadsheet/tq?key=0Aly4LfnVm8JLdGQwQWxBSmtzSDdRdnl0TXJheGlqbnc&transpose=0&headers=1&range=A1%3AE33&gid=14","options":{"titleTextStyle":{"fontSize":16},"vAxes":[{"useFormatFromData":true,"title":"Left vertical axis title","minValue":null,"viewWindow":{"min":null,"max":null},"maxValue":null},{"useFormatFromData":true,"minValue":null,"viewWindow":{"min":null,"max":null},"maxValue":null}],"booleanRole":"certainty","title":"Chart title","hAxis":{"useFormatFromData":true,"title":"Horizontal axis title","minValue":null,"viewWindow":{"min":null,"max":null},"maxValue":null},"width":600,"height":371},"state":{},"view":{},"isDefaultVisualization":true,"chartType":"MotionChart","chartName":"Chart 12"} </script>
+			</div>
+			<div id="chart10">
+				<script type="text/javascript" src="//ajax.googleapis.com/ajax/static/modules/gviz/1.0/chart.js"> {"dataSourceUrl":"//docs.google.com/spreadsheet/tq?key=0Aly4LfnVm8JLdGQwQWxBSmtzSDdRdnl0TXJheGlqbnc&transpose=0&headers=1&range=A1%3AD33&gid=15","options":{"titleTextStyle":{"fontSize":16},"vAxes":[{"useFormatFromData":true,"title":"Left vertical axis title","minValue":null,"viewWindow":{"min":null,"max":null},"maxValue":null},{"useFormatFromData":true,"minValue":null,"viewWindow":{"min":null,"max":null},"maxValue":null}],"booleanRole":"certainty","title":"Chart title","hAxis":{"useFormatFromData":true,"title":"Horizontal axis title","minValue":null,"viewWindow":{"min":null,"max":null},"maxValue":null},"width":600,"height":371},"state":{},"view":{},"isDefaultVisualization":true,"chartType":"MotionChart","chartName":"Chart 13"} </script>
+			</div>
+			<div id="chart11">
+				<script type="text/javascript" src="//ajax.googleapis.com/ajax/static/modules/gviz/1.0/chart.js"> {"dataSourceUrl":"//docs.google.com/spreadsheet/tq?key=0Aly4LfnVm8JLdGQwQWxBSmtzSDdRdnl0TXJheGlqbnc&transpose=0&headers=1&range=A1%3AD33&gid=16","options":{"titleTextStyle":{"fontSize":16},"vAxes":[{"useFormatFromData":true,"title":"Left vertical axis title","minValue":null,"viewWindow":{"min":null,"max":null},"maxValue":null},{"useFormatFromData":true,"minValue":null,"viewWindow":{"min":null,"max":null},"maxValue":null}],"booleanRole":"certainty","title":"Chart title","hAxis":{"useFormatFromData":true,"title":"Horizontal axis title","minValue":null,"viewWindow":{"min":null,"max":null},"maxValue":null},"width":600,"height":371},"state":{},"view":{},"isDefaultVisualization":true,"chartType":"MotionChart","chartName":"Chart 14"} </script>
+			</div>
+			<div id="chart12">Missing</div>
+			<div id="chart13">
+				<script type="text/javascript" src="//ajax.googleapis.com/ajax/static/modules/gviz/1.0/chart.js"> {"dataSourceUrl":"//docs.google.com/spreadsheet/tq?key=0Aly4LfnVm8JLdGQwQWxBSmtzSDdRdnl0TXJheGlqbnc&transpose=0&headers=1&range=A1%3AD33&gid=18","options":{"titleTextStyle":{"fontSize":16},"vAxes":[{"useFormatFromData":true,"title":"Left vertical axis title","minValue":null,"viewWindow":{"min":null,"max":null},"maxValue":null},{"useFormatFromData":true,"minValue":null,"viewWindow":{"min":null,"max":null},"maxValue":null}],"booleanRole":"certainty","title":"Chart title","hAxis":{"useFormatFromData":true,"title":"Horizontal axis title","minValue":null,"viewWindow":{"min":null,"max":null},"maxValue":null},"width":600,"height":371},"state":{},"view":{},"isDefaultVisualization":true,"chartType":"MotionChart","chartName":"Chart 15"} </script>
+			</div>
+			<div id="chart14">
+				<script type="text/javascript" src="//ajax.googleapis.com/ajax/static/modules/gviz/1.0/chart.js"> {"dataSourceUrl":"//docs.google.com/spreadsheet/tq?key=0Aly4LfnVm8JLdGQwQWxBSmtzSDdRdnl0TXJheGlqbnc&transpose=0&headers=1&range=A1%3AD33&gid=19","options":{"titleTextStyle":{"fontSize":16},"vAxes":[{"useFormatFromData":true,"title":"Left vertical axis title","minValue":null,"viewWindow":{"min":null,"max":null},"maxValue":null},{"useFormatFromData":true,"minValue":null,"viewWindow":{"min":null,"max":null},"maxValue":null}],"booleanRole":"certainty","title":"Chart title","hAxis":{"useFormatFromData":true,"title":"Horizontal axis title","minValue":null,"viewWindow":{"min":null,"max":null},"maxValue":null},"width":600,"height":371},"state":{},"view":{},"isDefaultVisualization":true,"chartType":"MotionChart","chartName":"Chart 16"} </script>
+			</div>
+			<div id="chart15">Missing</div>
+			<div id="chart16">
+				 <script type="text/javascript" src="//ajax.googleapis.com/ajax/static/modules/gviz/1.0/chart.js"> {"dataSourceUrl":"//docs.google.com/spreadsheet/tq?key=0Aly4LfnVm8JLdGQwQWxBSmtzSDdRdnl0TXJheGlqbnc&transpose=0&headers=1&range=A1%3AD33&gid=20","options":{"titleTextStyle":{"fontSize":16},"vAxes":[{"useFormatFromData":true,"title":"Left vertical axis title","minValue":null,"viewWindow":{"min":null,"max":null},"maxValue":null},{"useFormatFromData":true,"minValue":null,"viewWindow":{"min":null,"max":null},"maxValue":null}],"booleanRole":"certainty","title":"Chart title","hAxis":{"useFormatFromData":true,"title":"Horizontal axis title","minValue":null,"viewWindow":{"min":null,"max":null},"maxValue":null},"width":600,"height":371},"state":{},"view":{},"isDefaultVisualization":true,"chartType":"MotionChart","chartName":"Chart 17"} </script>
+			 </div>
+			<div id="chart17">
+				<script type="text/javascript" src="//ajax.googleapis.com/ajax/static/modules/gviz/1.0/chart.js"> {"dataSourceUrl":"//docs.google.com/spreadsheet/tq?key=0Aly4LfnVm8JLdGQwQWxBSmtzSDdRdnl0TXJheGlqbnc&transpose=0&headers=1&range=A1%3AD33&gid=21","options":{"titleTextStyle":{"fontSize":16},"vAxes":[{"useFormatFromData":true,"title":"Left vertical axis title","minValue":null,"viewWindow":{"min":null,"max":null},"maxValue":null},{"useFormatFromData":true,"minValue":null,"viewWindow":{"min":null,"max":null},"maxValue":null}],"booleanRole":"certainty","title":"Chart title","hAxis":{"useFormatFromData":true,"title":"Horizontal axis title","minValue":null,"viewWindow":{"min":null,"max":null},"maxValue":null},"width":600,"height":371},"state":{},"view":{},"isDefaultVisualization":true,"chartType":"MotionChart","chartName":"Chart 18"} </script>
+			</div>
+			<div id="chart18">
+				<script type="text/javascript" src="//ajax.googleapis.com/ajax/static/modules/gviz/1.0/chart.js"> {"dataSourceUrl":"//docs.google.com/spreadsheet/tq?key=0Aly4LfnVm8JLdGQwQWxBSmtzSDdRdnl0TXJheGlqbnc&transpose=0&headers=1&range=A1%3AD33&gid=22","options":{"titleTextStyle":{"fontSize":16},"vAxes":[{"useFormatFromData":true,"title":"Left vertical axis title","minValue":null,"viewWindow":{"min":null,"max":null},"maxValue":null},{"useFormatFromData":true,"minValue":null,"viewWindow":{"min":null,"max":null},"maxValue":null}],"booleanRole":"certainty","title":"Chart title","hAxis":{"useFormatFromData":true,"title":"Horizontal axis title","minValue":null,"viewWindow":{"min":null,"max":null},"maxValue":null},"width":600,"height":371},"state":{},"view":{},"isDefaultVisualization":true,"chartType":"MotionChart","chartName":"Chart 19"} </script>
+			</div>
+			<div id="chart24">
+				<script type="text/javascript" src="//ajax.googleapis.com/ajax/static/modules/gviz/1.0/chart.js"> {"dataSourceUrl":"//docs.google.com/spreadsheet/tq?key=0Aly4LfnVm8JLdGQwQWxBSmtzSDdRdnl0TXJheGlqbnc&transpose=0&headers=1&range=A1%3AD33&gid=23","options":{"titleTextStyle":{"fontSize":16},"vAxes":[{"useFormatFromData":true,"title":"Left vertical axis title","minValue":null,"viewWindow":{"min":null,"max":null},"maxValue":null},{"useFormatFromData":true,"minValue":null,"viewWindow":{"min":null,"max":null},"maxValue":null}],"booleanRole":"certainty","title":"Chart title","hAxis":{"useFormatFromData":true,"title":"Horizontal axis title","minValue":null,"viewWindow":{"min":null,"max":null},"maxValue":null},"width":600,"height":371},"state":{},"view":{},"isDefaultVisualization":true,"chartType":"MotionChart","chartName":"Chart 20"} </script>
+			</div>
+			<div id="chart25">
+				<script type="text/javascript" src="//ajax.googleapis.com/ajax/static/modules/gviz/1.0/chart.js"> {"dataSourceUrl":"//docs.google.com/spreadsheet/tq?key=0Aly4LfnVm8JLdGQwQWxBSmtzSDdRdnl0TXJheGlqbnc&transpose=0&headers=1&range=A1%3AD33&gid=24","options":{"titleTextStyle":{"fontSize":16},"vAxes":[{"useFormatFromData":true,"title":"Left vertical axis title","minValue":null,"viewWindow":{"max":null,"min":null},"maxValue":null},{"useFormatFromData":true,"minValue":null,"viewWindow":{"max":null,"min":null},"maxValue":null}],"booleanRole":"certainty","title":"Chart title","hAxis":{"useFormatFromData":true,"title":"Horizontal axis title","minValue":null,"viewWindow":{"max":null,"min":null},"maxValue":null},"width":600,"height":371,"animation":{"duration":500},"focusTarget":"series","tooltip":{"trigger":"none"}},"state":{},"view":{},"isDefaultVisualization":true,"chartType":"MotionChart","chartName":"Chart 21"} </script>
+			</div>
+			<div id="chart26">
+				<script type="text/javascript" src="//ajax.googleapis.com/ajax/static/modules/gviz/1.0/chart.js"> {"dataSourceUrl":"//docs.google.com/spreadsheet/tq?key=0Aly4LfnVm8JLdGQwQWxBSmtzSDdRdnl0TXJheGlqbnc&transpose=0&headers=1&range=A1%3AD33&gid=25","options":{"titleTextStyle":{"fontSize":16},"vAxes":[{"useFormatFromData":true,"title":"Left vertical axis title","minValue":null,"viewWindow":{"max":null,"min":null},"maxValue":null},{"useFormatFromData":true,"minValue":null,"viewWindow":{"max":null,"min":null},"maxValue":null}],"booleanRole":"certainty","title":"Chart title","height":371,"width":600,"hAxis":{"useFormatFromData":true,"title":"Horizontal axis title","minValue":null,"viewWindow":{"max":null,"min":null},"maxValue":null},"animation":{"duration":500},"focusTarget":"series","tooltip":{"trigger":"none"}},"state":{},"view":{},"isDefaultVisualization":true,"chartType":"MotionChart","chartName":"Chart 22"} </script>
+			</div>
+		</div>
+		<div id="information"></div>
+	</div>
+	<br \><br \><br \><br \><br \>
+	<div id="info">
+		<table id="more-info" class="info-popup-table"></div>
+	<div id="container"></div>
+</body>
+</html>

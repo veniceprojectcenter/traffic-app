@@ -1,0 +1,649 @@
+<!doctype html>
+<!--
+	Author: Alex Solomon
+-->
+<html lang="en" ng-app="moapp">
+	<head>
+		<title>Venice Traffic and Moto Ondoso</title>
+		<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+		
+		<link rel="stylesheet" type="text/css" href="css/reset.css"/>
+		
+		<!-- Firebase -->
+		<script type='text/javascript' src='https://cdn.firebase.com/v0/firebase.js'></script>
+		
+		<!-- jquery -->
+		<script src="https://ajax.googleapis.com/ajax/libs/jquery/1.10.2/jquery.min.js"></script>
+		
+		<!-- Leaflet -->
+		<script src="http://cdn.leafletjs.com/leaflet-0.6.4/leaflet.js"></script>
+		<link rel="stylesheet" href="http://cdn.leafletjs.com/leaflet-0.6.4/leaflet.css" />
+		
+		<!-- bootstrap -->
+		<link rel="stylesheet" type="text/css" href="css/bootstrap.min.css"/>
+		<link rel="stylesheet" type="text/css" href="css/bootstrap-theme.min.css"/>
+		<script type='text/javascript' src='js/bootstrap.min.js'></script>
+		
+		<!-- angularjs -->
+		<script src="http://ajax.googleapis.com/ajax/libs/angularjs/1.2.0/angular.min.js"></script>
+		
+		<!-- angular slider -->
+		<link rel="stylesheet" type="text/css" href="css/angular-slider.min.css"/>
+		<script type='text/javascript' src='js/angular-slider.min.js'></script>
+		
+		<style>
+			.info{
+				width:250px;
+				height:200px;
+			}
+			.info-form{
+				float:bottom;
+			}
+			.info-button{
+				width:50%;
+			}
+		</style>
+		
+		<!-- spinner -->
+		<script type='text/javascript' src='js/spin.min.js'></script>
+		<script type='text/javascript' src='js/jquery.spin.js'></script>
+		
+		<!-- local css -->
+		<link rel="stylesheet" type="text/css" href="css/main.css"/>
+		
+		<!-- console library -->
+		<script type='text/javascript' src='js/ck-console.js'></script>
+		
+		<!-- cookie stuff -->
+		<script type='text/javascript' src='js/jquery.cookie.js'></script>
+		
+		<!-- Stuff for traffic/mo data -->
+		<script type='text/javascript' src='js/trafficdata.js'></script>
+		<script type='text/javascript' src='js/stations.js'></script>
+		
+		<style>
+			.info-box {
+				padding: 6px 8px;
+				font: 14px/16px Arial, Helvetica, sans-serif;
+				background: white;
+				background: rgba(255,255,255,0.9);
+				box-shadow: 0 0 15px rgba(0,0,0,0.2);
+				border-radius: 5px;
+				width: 320px;
+			}
+			
+			.infoPopup {
+				height: 100px;
+				width: 200px;
+			}
+			
+			.stationPopup {
+				height: 150px;
+				width: 200px;
+			}
+		</style>
+		
+		<script type='text/javascript'>
+			/**
+			!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+			savings in euros = total moto ondoso / 100
+			**/
+			
+			app = angular.module('moapp', ['uiSlider', 'ckServices']);
+			app.controller('DataCtrl', ['$scope', '$compile', 'ckConsole', 'ckConsoleMap', '$http', function($scope, $compile, ckConsole, ckConsoleMap, $http){
+				var map;
+				var baseLayer;
+				var segmentLayer;
+				var stationLayer;
+				var allStations = [];
+				var segments = [];
+				var maximum = 0;
+				var changed = true; // Do we need to redraw
+				
+				
+				// Various small differences depending on traffic/moi and current/previous
+				var globType = "moi"; // moi, traffic
+				var globTime = "now"; // past, now
+				var isSplit = false; // show the button to open the comparison window
+				
+				/** Notes
+					map is the main map
+					baseLayer is unused?
+					segmentLayer is the layer containing the individual canal segments
+					segments contains all stuff about each segment
+						to see what it contains, check addSegment()
+						To change the color of a layer, use segments[i].marker.setStyle().  Make sure the marker exists.
+				**/
+				
+				function addSegment(seg, mark) {
+					var newSegment = [];
+					newSegment.name = seg.birth_certificate.birthID;
+					newSegment.data = seg.data;
+					newSegment.otherData = [];
+					newSegment.segment = seg;
+					newSegment.marker = mark;
+					segments.push(newSegment);
+					return newSegment;
+				}
+				
+				// range should be 0-100
+				// green->yellow->red
+				function getColor(range) {
+					if (range == 0) {
+						return "#FFFFFF";
+					} else if (range <= 5) {
+						return "#00FF00";
+					} else if (range <= 10) {
+						return "#33FF00";
+					} else if (range <= 13) {
+						return "#66FF00";
+					} else if (range <= 18) {
+						return "#99FF00";
+					} else if (range <= 25) {
+						return "#CCFF00";
+					} else if (range <= 35) {
+						return "#FFFF00";
+					} else if (range <= 40) {
+						return "#FFBB00";
+					} else if (range <= 60) {
+						return "#FF8800";
+					} else if (range <= 80) {
+						return "#FF4400";
+					} else if (range <= 101) {
+						return "#FF0000";
+					} else {
+						return "#00FFFF";
+					}
+				}
+				
+				function createSliderBox() {
+					var info = L.control({position: "bottomright"});
+					info.onAdd = function (map) {
+							var htmlContent = sliderBoxContent(globType, globTime);
+						$scope.compiled = $compile(htmlContent)($scope);
+						this._content = $scope.compiled[0];
+						return this._content;
+					};
+					return info
+				}
+				
+				function showInfoBox(e, member, marker, layer) {
+					var popup = L.popup()
+						.setLatLng(e.latlng)
+						.setContent(popupContent(globType, globTime, member))
+						.openOn(map);
+					console.log(popupContent(globType, globTime, member));
+				}
+				
+				function showStationBox(e, member, marker, layer) {
+					var popup = L.popup()
+						.setLatLng(e.latlng)
+						.setContent(stationPopupContent(globType, globTime, member))
+						.openOn(map);
+					console.log(stationPopupContent(globType, globTime, member));
+				}
+				
+				function stationPopupContent(type, time, member) {
+					var peakInfo;
+					var campaign;
+					if (type == 'past') {
+						peakInfo = getStationDataCampaign(member, allCampaigns[$scope.campaignNumber]);
+						campaign = allCampaigns[$scope.campaignNumber].name;
+					} else {
+						peakInfo = getStationDataCampaign(member, allCampaigns[9]);
+						campaign = allCampaigns[9].name;
+					}
+					
+					return '<iframe class="stationPopup" src="/views/stationpopup.html?Type='+type+'&Time='+time+'&number='+member.data.Code+'&name='+member.data.Station+'&peakTraffic='+peakInfo.traffic+'&campaign='+campaign+'&peakTime='+peakInfo.time+'&totalVolume='+peakInfo.total+'" scrolling="no" />';
+				}
+				
+				function createReductionBox(){
+					console.log("huh?");
+					var info = L.control();
+					info.onAdd = function (map) {
+					var htmlContent = '<div class="info-box"><h4 id="box-title"></h4>';
+					if (globTime == 'now') {
+						htmlContent = htmlContent +
+						'<p><span style="display:block"><span id="box-label" style="font-weight:bold;"></span>{{boxInfo}}%</span></p>'+
+						'</div>';
+					} else {
+						console.log("and it added it");
+						htmlContent = htmlContent + '</div>';
+						console.log(htmlContent);
+					}
+					$scope.compiled = $compile(htmlContent)($scope);
+					this._content = $scope.compiled[0];
+					return this._content;
+				};
+				return info;
+			}			
+/*
+	Functions for deciding between the minor differences
+ */
+				 
+				 function updateSegments(type, time) {
+					if (time == 'now') {
+						if (type == 'moi') {
+							updateSegmentsMOIRedux();
+						} else if (type == 'traffic') {
+							updateSegmentsTrafficRedux();
+						}
+					} else if (time == 'past') {
+						if (type == 'moi') {
+							updateSegmentsMOICampaign();
+						} else if (type == 'traffic') {
+							updateSegmentsTrafficCampaign();
+						}
+					}
+				 }
+				 
+				 function getMax(type, time) {
+					if (time == 'now') {
+						return getMaxRedux();
+					} else if (time = 'past') {
+						return 100;
+					}
+				 }
+				 
+				 function getTotalSegment(type, time, info) {
+				 if (time == 'now') {
+						if (type == 'moi') {
+							//console.log("well fuck you then");
+							return getTotalSegmentRedux(info.seg, info.cargo, info.speed, info.taxi, info.length, true);
+						} else if (type == 'traffic') {
+							return getTotalSegmentRedux(info.seg, info.cargo, 0, info.taxi, 0, false);
+						}
+					} else if (time == 'past') {
+						if (type == 'moi') {
+							return getTotalSegmentCampaign(info.seg, allCampaigns[info.campaignNumber]);
+						} else if (type == 'traffic') {
+							return getTotalSegmentCampaign(info.seg, allTrafficCampaigns[info.campaignNumber]);
+						}
+					}
+				 }
+				 
+				 function sliderBoxContent(type, time) {
+					var splitFront = '<br/><input style="{width:100%"} type="button" value="Comparison" onClick="window.open(';
+					var splitBack = ');" />';
+					if (time == 'now') {
+						if (type == 'moi') {
+							var campaignPage="'index.html?showPast=true&showMOI=true";
+							var trafficPage="'index.html?showPresent=true&showTraffic=true";
+							var splitPage="'splitscreen.html?showPresent=true&showMOI=true'";
+							if (!isSplit) {
+								splitPage = splitFront + splitPage + splitBack;
+								campaignPage = campaignPage + "'";
+								trafficPage = trafficPage + "'";
+							} else {
+								splitPage = "";
+								campaignPage = campaignPage + "&isSplit=true'";
+								trafficPage = trafficPage + "&isSplit=true'";
+							}
+							return '<div class="info-box">'+'<p><h4>Moto Ondoso Reductions</h4></p>'+'<p><h5 style="margin:0px;">Cargo boats ({{cargoRedux}}%):</h5><slider floor="0" ceiling="100" step="1" precision="0" ng-model="cargoRedux"></slider></p>'+'<p><h5 style="margin:0px;">Speed Limit ({{speedLimit}}%):</h5><slider floor="0" ceiling="100" step="1" precision="0" ng-model="speedLimit"></slider></p>'+'<p><h5 style="margin:0px;">Taxi Reduction ({{taxiRedux}}%):</h5><slider floor="0" ceiling="100" step="1" precision="0" ng-model="taxiRedux"></slider></p>'+'<form class="info-form"><input class="info-button" type="button" value="Show Campaigns" onClick="window.location.assign('+campaignPage+');" /><input class="info-button" type="button" value="Boat Traffic" onClick="window.location.assign('+trafficPage+');" />'+splitPage+'</form>'+'</div>';
+						} else if (type == 'traffic') {
+							var campaignPage="'index.html?showPast=true&showTraffic=true";
+							var moiPage="'index.html?showPresent=true&showMOI=true";
+							var splitPage="'splitscreen.html?showPresent=true&showTraffic=true'";
+							if (!isSplit) {
+								splitPage = splitFront + splitPage + splitBack;
+								campaignPage = campaignPage + "'";
+								moiPage = moiPage + "'";
+							} else {
+								splitPage = "";
+								campaignPage = campaignPage + "&isSplit=true'";
+								moiPage = moiPage + "&isSplit=true'";
+							}
+							return '<div class="info-box">'+'<p><h4>Traffic Reductions</h4></p>'+'<p><h5 style="margin:0px;">Cargo boats ({{cargoRedux}}%):</h5><slider floor="0" ceiling="100" step="1" precision="0" ng-model="cargoRedux"></slider></p>'+'<p><h5 style="margin:0px;">Taxi Reduction ({{taxiRedux}}%):</h5><slider floor="0" ceiling="100" step="1" precision="0" ng-model="taxiRedux"></slider></p>'+'<form class="info-form"><input class="info-button" type="button" value="Show Campaigns" onClick="window.location.assign('+campaignPage+');" /><input class="info-button" type="button" value="Moto Ondoso" onClick="window.location.assign('+moiPage+');" />'+splitPage+'</form>'+'</div>';
+						}
+					} else if (time == 'past') {
+						if (type == 'moi') {
+							var nowPage="'index.html?showPresent=true&showMOI=true";
+							var trafficPage="'index.html?showPast=true&showTraffic=true";
+							var splitPage="'splitscreen.html?showPast=true&showTraffic=true'";
+							if (!isSplit) {
+								splitPage = splitFront + splitPage + splitBack;
+								nowPage = nowPage + "'";
+								trafficPage = trafficPage + "'";
+							} else {
+								splitPage = "";
+								nowPage = nowPage + "&isSplit=true'";
+								trafficPage = trafficPage + "&isSplit=true'";
+							}
+							return '<div class="info-box">'+'<p><h4>Campaigns</h4></p>'+'<p><h5 id="campaignLocation" style="margin:0px; width=100px">Campaign ({{campaignNumber}}):</h5><slider floor="0" ceiling="9" step="1" precision="0" ng-model="campaignNumber"></slider></p>'+'<form class="info-form"><input class="info-button" type="button" value="Show Present" onClick="window.location.assign('+nowPage+');" /><input class="info-button" type="button" value="Boat Traffic" onClick="window.location.assign('+trafficPage+');" />'+splitPage+'</form>'+'</div>';
+						} else if (type == 'traffic') {
+							var newPage="'index.html?showPresent=true&showTraffic=true";
+							var moiPage="'index.html?showPast=true&showMOI=true";
+							var splitPage="'splitscreen.html?showPast=true&showTraffic=true'";
+							if (!isSplit) {
+								splitPage = splitFront + splitPage + splitBack;
+								newPage = newPage + "'";
+								moiPage = moiPage + "'";
+							} else {
+								splitPage = "";
+								newPage = newPage + "&isSplit=true'";
+								moiPage = moiPage + "&isSplit=true'";
+							}
+							return '<div class="info-box">'+'<p><h4>Campaign Traffic</h4></p>'+'<p><h5 id="campaignLocation" style="margin:0px; width=100px">Campaign ({{campaignNumber}}):</h5><slider floor="0" ceiling="9" step="1" precision="0" ng-model="campaignNumber"></slider></p>'+'<form class="info-form"><input class="info-button" type="button" value="Show Present" onClick="window.location.assign('+newPage+');" /><input class="info-button" type="button" value="Moto Ondoso" onClick="window.location.assign('+moiPage+');" />'+splitPage+'</form>'+'</div>';
+						}
+					}
+				}
+				 
+				 function popupContent(type, time, member) {
+					var segname = member.birth_certificate.birthID;
+					var length = member.data['Length (m)'];
+					//console.log(member.data);
+					if (time == 'now') {
+						if (type == 'moi') {
+							var moi = getTotalSegment(type, time, {"seg":{"name":segname}, "cargo":0, "speed":0, "taxi":0, 'length':length});
+							var rmoi = getTotalSegment(type, time, {"seg":{"name":segname}, "cargo":$scope.cargoRedux, "speed":$scope.speedLimit, "taxi":$scope.taxiRedux, 'length':length});
+							return '<iframe src="/views/infopopup.html?Type='+type+'&Time='+time+'&Segment=' + segname + '&TotalMO=' + moi.toFixed() + '&ReducedMO=' + rmoi.toFixed() + '" height="100" class="infoPopup" scrolling="no" />';
+						} else if (type == 'traffic') {
+							var traffic = getTotalSegment(type, time, {'seg':{'name':segname}, 'cargo':0, 'taxi':0, 'length':0});
+							var rtraffic = getTotalSegment(type, time, {'seg':{'name':segname}, 'cargo':$scope.cargoRedux, 'speed':$scope.speedLimit, 'taxi':$scope.taxiRedux, 'length':0});
+							return '<iframe src="/views/infopopup.html?Type='+type+'&Time='+time+'&Segment='+segname+'&TotalTraffic='+traffic.toFixed()+'&ReducedTraffic='+rtraffic.toFixed()+'" height="100" class="infoPopup" scrolling="no" />';
+						}
+					} else if (time == 'past') {
+						if (type == 'moi') {
+							var moi = getTotalSegment(type, time, {"seg":{"name":segname}, 'campaignNumber':$scope.campaignNumber}) * moiCampaignMult;
+							var campaign = allCampaigns[$scope.campaignNumber].name;
+							return '<iframe src="/views/infopopup.html?Type='+type+'&Time='+time+'&Segment='+segname+'&TotalMO='+moi.toFixed()+'&Campaign='+campaign+'" height="100" class="infoPopup" scrolling="no" />';
+						} else if (type == 'traffic') {
+							var traffic = getTotalSegment(type, time, {"seg":{"name":segname}, 'campaignNumber':$scope.campaignNumber}) * trafficCampaignMult;
+							var campaign = allCampaigns[$scope.campaignNumber].name;
+							return '<iframe src="/views/infopopup.html?Type='+type+'&Time='+time+'&Segment='+segname+'&TotalTraffic='+traffic.toFixed()+'&Campaign='+campaign+'" height="100" class="infoPopup" scrolling="no" />';
+						}
+					}
+				 }
+				 
+				 function setWatches(type, time) {
+					if (time == 'now') {
+						//if (type == 'moi') {
+							$scope.$watch('cargoRedux', cargoChanged);
+							$scope.$watch('speedLimit', limitChanged);
+							$scope.$watch('taxiRedux', taxiChanged);
+						//} else if (type == 'traffic') {
+						//}
+					} else if (time == 'past') {
+						if (type == 'moi') {
+							$scope.$watch('campaignNumber', campaignChanged);
+						} else if (type == 'traffic') {
+							$scope.$watch('campaignNumber', campaignChangedTraffic);
+						}
+					}
+				}
+				 
+				 function mySetTimeout(type, time) {
+				 if (time == 'now') {
+						setTimeout(updateSegmentsRedux, 250);
+					} else if (time == 'past') {
+							setTimeout(updateSegmentsCampaign, 250);
+					}
+				 }
+							
+				function getUrlVars() {
+					var vars = {};
+					var parts = window.location.href.replace(/[?&]+([^=&]+)=([^&]*)/gi, function(m,key,value) {
+						vars[key] = value;
+					});
+					return vars;
+				}
+
+				function getArguments() {
+					var tmp = getUrlVars()['showPast'];
+					if (tmp == 'true') {
+						globTime = 'past';
+					}
+					
+					tmp = getUrlVars()['showPresent'];
+					if (tmp == 'true') {
+						globTime = 'now';
+					}
+					
+					tmp = getUrlVars()['showMOI'];
+					if (tmp == 'true') {
+						globType = 'moi';
+					}
+					
+					tmp = getUrlVars()['showTraffic'];
+					if (tmp == 'true') {
+						globType = 'traffic';
+					}
+					
+					tmp = getUrlVars()['isSplit'];
+					if (tmp == 'true') {
+						isSplit = true;
+					}
+				}
+				
+/*
+	Differing functions
+*/
+				function updateSegmentsCampaign() {
+					if ($scope && segmentLayer) {
+						for (var i in segments) {
+								if (segments[i].marker) {
+								var num = getTotalSegment(globType, globTime, {'seg':segments[i], 'campaignNumber':$scope.campaignNumber});
+								if (num > 0) {
+									segments[i].marker.setStyle({
+										fillColor: getColor(num),
+										fillOpacity: 1.0,
+										opacity: 1.0});
+									segments[i].marker.clickable = true;
+								} else {
+									segments[i].marker.setStyle({
+										opacity: 0.0,
+										fillOpacity: 0.0});
+									segments[i].marker.clickable = false;
+								}
+							}
+						}
+					}
+					mySetTimeout(globType, globTime);
+				}
+				
+				function updateSegmentsRedux(){
+					var total = 0;
+					if ($scope && segmentLayer) {
+						if (maximum == 0) {
+							getMax(globType, globTime);
+						}
+						for (var i in segments) {
+							if (segments[i].marker)	{
+								var length = segments[i].data['Length (m)'];
+								var num = getTotalSegment(globType, globTime, {'seg':segments[i], 'cargo':$scope.cargoRedux, 'speed':$scope.speedLimit, 'taxi':$scope.taxiRedux, 'length':length});
+								total += num;
+								num *= 100/maximum;
+								if (num > 0) {
+									//segments[i].clickable = true;
+									segments[i].marker.setStyle({
+										fillColor: getColor(num),
+										fillOpacity: 1.0,
+										opacity: 1.0,
+										clickable: true});
+								} else {
+									//segments[i].clickable = false;
+									segments[i].marker.setStyle({
+										opacity: 0.0,
+										fillOpacity: 0.0,
+										clickable: false});
+								}
+							}
+						}
+					}
+					if (globType == 'moi') {
+						$scope.boxInfo = ((1 - total/9872020.383)*100).toFixed();
+					} else if (globType == 'traffic') {
+						$scope.boxInfo = ((1 - total/12399)*100).toFixed();
+					}
+					mySetTimeout(globType, globTime);
+				}
+				
+				function getMaxRedux() {
+					for(var i in segments) {
+						var num = getTotalSegment(globType, globTime, {'seg':segments[i], 'cargo':0, 'speed':0, 'taxi':0, 'length':segments[i].data["Length (m)"]});
+						if (num > maximum) {
+							maximum = num;
+							//console.log("i: " + i + " maximum: " + maximum+ 'num: ' + num);
+						}
+					}
+				}
+				
+				function cargoChanged() {
+					$.cookie("cargo", $scope.cargoRedux);
+					changed = true;
+				}
+				
+				function limitChanged() {
+					$.cookie("speed", $scope.speedLimit);
+					changed = true;
+				}
+				
+				function taxiChanged() {
+					$.cookie("speed", $scope.taxiRedux);
+					changed = true;
+				}
+				
+				function campaignChanged() {
+					document.getElementById('campaignLocation').innerHTML = allCampaigns[$scope.campaignNumber].name;
+					changed = true;
+				}
+				
+				function campaignChangedTraffic() {
+					document.getElementById('campaignLocation').innerHTML = allTrafficCampaigns[$scope.campaignNumber].name;
+					changed = true;
+				}
+				
+			function createBrandBox(){
+				var info = L.control({position: "bottomleft"});
+				info.onAdd = function (map) {
+					var htmlContent = '<div class="info" style="width:auto;">'+
+						'<span ng-click="showAbout()"><img src="about.png" style="cursor:pointer;padding-right:7px;"></span>'+
+						'<a href="http://veniceprojectcenter.org"><img src="vpc25logo.png"></a>'+
+						'</div>';
+					$scope.compiled = $compile(htmlContent)($scope);
+					this._content = $scope.compiled[0];
+					return this._content;
+				};
+				return info;
+			}
+			
+			$scope.showAbout = function (){
+				$('#aboutPanel').show();
+			}
+			$scope.hideAbout = function (){
+				$('#aboutPanel').hide();
+			}
+
+				$(document).ready(function() {
+					$scope.cargoRedux = 0;
+					$scope.speedLimit = 0;
+					$scope.taxiRedux = 0;
+					$scope.campaignNumber = 0;
+					$scope.chosenCampaign = "None";
+					$scope.boxInfo = 0;
+					
+					getArguments();
+					
+					map = L.map("map-canvas", {minZoom: 14}).setView([45.436 , 12.334], 14);
+					$scope.baseLayer = new L.TileLayer(
+						'http://{s}.tiles.mapbox.com/v3/bennlich.map-8ds9rdrc/{z}/{x}/{y}.png',
+						{ attribution: 'Map tiles &copy MapBox' }
+						).addTo(map);
+					L.control.scale().addTo(map);
+					
+					createReductionBox().addTo(map);
+					if (globTime == 'now') {
+						if (globType == 'moi') {
+							document.getElementById('box-label').innerHTML = 'Total Reduction: ';
+							document.getElementById('box-title').innerHTML = 'Moto Ondoso Reductions';
+						} else if (globType == 'traffic') {
+							document.getElementById('box-label').innerHTML = 'Total Reduction: ';
+							document.getElementById('box-title').innerHTML = 'Traffic Reductions';
+						}
+					} else if (globTime == 'past') {
+						if (globType == 'moi') {
+							document.getElementById('box-title').innerHTML = 'Moto Ondoso of Past Campaigns';
+						} else if (globType == 'traffic') {
+							document.getElementById('box-title').innerHTML = 'Traffic from Past Campaigns';
+						}
+					}
+						
+					
+					
+					createSliderBox().addTo(map);
+					
+					createBrandBox().addTo(map);
+					$('#aboutPanel').hide();
+					
+					setWatches(globType, globTime);
+					
+					$('#spinner').spin('large', '#fff');
+					ckConsoleMap.createMapLayerFromGroupData(map, ckConsole.getGroup("MERGE Canal Segments"), function(newLayer){
+						// Hide all segments to start
+						newLayer.show();
+						newLayer.setStyle({
+							fillColor: '#FF0000',
+							color:'#FFFFFF',
+							fillOpacity: 0.0,
+							weight: 0,
+							opacity: 0.0});
+							
+						$scope.segmentLayer = newLayer;
+						segmentLayer = newLayer;
+						
+						//console.log($scope.layerControl);
+						//console.log(newLayer);
+						//$scope.layerControl.addOverlay(newLayer, "Segments");
+						
+						newLayer.on('click', showInfoBox);
+					}).then(function (newLayer) {
+						segmentLayer.eachMember(function(member, marker){
+							var mySeg = addSegment(member, marker);
+						});
+						
+						getMax(globType, globTime);
+						//console.log("max: " + maximum);
+						
+						mySetTimeout(globType, globTime);
+						
+						$('#loadingPanel').hide();
+						$('#spinner').spin(false);
+					});
+					
+					ckConsoleMap.createMapLayerFromGroupData(map, ckConsole.getGroup("COSES Station Locations"), function(newLayer) {
+						newLayer.show();
+						
+						$scope.stationLayer = newLayer;
+						stationLayer = newLayer;
+						
+						newLayer.on('click', showStationBox);
+						//$scope.layerControl.addOverlay(stationLayer, "Stations");
+					}).then(function (newLayer){
+						stationLayer.eachMember(function (member, marker) {
+							allStations[member.data.Code] = {'member':member, 'marker':marker};
+						});
+						console.log(allStations);
+					});
+				});
+			}]);
+		</script>
+	</head>
+	<body ng-controller="DataCtrl">
+		<div style="position:absolute;width:100%;height:100%;">
+			<div id="map-canvas" style="width:100%;height:100%;"></div>
+		</div>
+		
+		<div style="position:absolute;top:0px;left:0px;width:100%;height:100%;z-index:2000;background-color:rgba(0,0,0,0.5);" id="loadingPanel">
+			<div style="margin-left:auto;margin-right:auto;text-align:center;margin-top:50px;" id="loadingText"><h3 style="color:white;">Loading...</h3></div>
+			<div style="position:absolute;left:50%;top:50%;" id="spinner"></div>
+		</div>
+		<div ng-click="hideAbout()" style="position:absolute;top:0px;left:0px;width:100%;height:100%;z-index:2000;background-color:rgba(0,0,0,0.5);" id="aboutPanel">
+			<div class="info" style="position: absolute;top: 50%;left: 50%;margin-top: -250px;margin-left: -250px;height: 500px;width:500px;overflow:auto;padding:5px" id="about">
+				<h1 style="color:white;">Traffic and Moto Ondoso Visualizer</h1>
+				<p style="color:white;">This application lets you examine traffic data and moto ondoso from several past campaigns conducted by COSES.
+										The sliders let you to adjust which campaign you are viewing or see the effect of various potential reduction plans</p>
+				<img style="position:absolute;bottom:5px;left:5px;" src="wpi_logo.png">
+			</div>
+		</div>
+	</body>
+</html>

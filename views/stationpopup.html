@@ -1,0 +1,73 @@
+<html>
+<head>
+	<!-- jquery -->
+	<script src="https://ajax.googleapis.com/ajax/libs/jquery/1.10.2/jquery.min.js"></script>
+
+	<script type='text/javascript' src='../js/trafficdata.js'></script>
+	<script type='text/javascript' src='../js/stations.js'></script>
+	
+	<link rel="stylesheet" type="text/css" href="../css/main.css"/>
+	<link rel="stylesheet" type="text/css" href="../css/bootstrap.min.css"/>
+	<link rel="stylesheet" type="text/css" href="../css/bootstrap-theme.min.css"/>
+	<link rel="stylesheet" type="text/css" href="../css/reset.css"/>
+	
+	<style>
+		h4, .h4 {
+			font-size: 18px;
+			margin-top: 10px;
+			margin-bottom: 10px;
+			font-family: "Helvetica Neue",Helvetica,Arial,sans-serif;
+			font-weight: 500;
+			line-height: 1.1;
+		}
+	</style>
+	
+	<script type='text/javascript'>
+		//var allStations = [];
+		var station;
+		function getUrlVars() {
+			var vars = {};
+			var parts = window.location.href.replace(/[?&]+([^=&]+)=([^&]*)/gi, function(m,key,value) {
+				vars[key] = value;
+			});
+			return vars;
+		}
+		
+		$(document).ready(function() {
+			var type=getUrlVars()['Type'];
+			var time=getUrlVars()['Time'];
+			
+			var title = document.getElementById('title');
+			var table = document.getElementById('table');
+			var links = document.getElementById('links');
+			
+			var stationNumber = getUrlVars()['number'];
+			var stationName = getUrlVars()['name'].replace(/%20/g,' ');
+			var peakTraffic = getUrlVars()['peakTraffic'];
+			var peakTime = getUrlVars()['peakTime'];
+			var totalVolume = getUrlVars()['totalVolume'];
+			
+			title.innerHTML = '<h4>'+stationName+'</h4>';
+			
+			table.innerHTML = table.innerHTML+'<tr class="odd-info-popup-row"><td style="font-weight:bold;">Station Number:</td>'+'<td>'+stationNumber+'</td></tr>';
+			
+			if (peakTraffic != -1) {
+				table.innerHTML = table.innerHTML+'<tr class="even-info-popup-row"><td style="font-weight:bold;">Peak Traffic:</td>'+'<td>'+peakTraffic.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",")+'</td></tr>';
+				table.innerHTML = table.innerHTML+'<tr class="odd-info-popup-row"><td style="font-weight:bold;">Peak Time:</td>'+'<td>'+peakTime+'</td></tr>';
+				table.innerHTML = table.innerHTML+'<tr class="even-info-popup-row"><td style="font-weight:bold;">Total Volume:</td>'+'<td>'+totalVolume.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",")+'</td></tr>';
+			}
+				
+			
+			var url = '/moreStationInfo.html?stationNumber='+stationNumber;
+			var open= 'window.open("' + url + '");';
+			links.innerHTML = '<a href="" onClick=' + open + '>More information</a>';
+		});
+	</script>
+
+</head>
+<body>
+	<div id="title"></div>
+	<table id="table" class="info-popup-table"></table>
+	<div id="links"></div>
+</body>
+</html>

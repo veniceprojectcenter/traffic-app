@@ -1,0 +1,88 @@
+<!-- Content purely for demonstration right now.
+I'll fill in the actual stuff once I get other things working -->
+<html>
+<head>
+	<!-- jquery -->
+	<script src="https://ajax.googleapis.com/ajax/libs/jquery/1.10.2/jquery.min.js"></script>
+
+	<script type='text/javascript' src='../js/trafficdata.js'></script>
+	<link rel="stylesheet" type="text/css" href="../css/main.css"/>
+	<link rel="stylesheet" type="text/css" href="../css/bootstrap.min.css"/>
+	<link rel="stylesheet" type="text/css" href="../css/bootstrap-theme.min.css"/>
+	<link rel="stylesheet" type="text/css" href="../css/reset.css"/>
+	
+	
+	<style>
+		h4, .h4 {
+			font-size: 18px;
+			margin-top: 10px;
+			margin-bottom: 10px;
+			font-family: "Helvetica Neue",Helvetica,Arial,sans-serif;
+			font-weight: 500;
+			line-height: 1.1;
+		}
+	</style>
+	<script type='text/javascript'>
+		function getUrlVars() {
+			var vars = {};
+			var parts = window.location.href.replace(/[?&]+([^=&]+)=([^&]*)/gi, function(m,key,value) {
+				vars[key] = value;
+			});
+			return vars;
+		}
+		
+		$(document).ready(function() {
+			var type=getUrlVars()['Type'];
+			var time=getUrlVars()['Time'];
+			var segment = getUrlVars()['Segment'];
+			
+			var title = document.getElementById('title');
+			var table = document.getElementById('table');
+			
+			if (time == 'now') {
+				if (type == 'moi') {
+					var moi = getUrlVars()['TotalMO'];
+					var reduced = getUrlVars()['ReducedMO'];
+					
+					title.innerHTML = '<h4>'+segment+'</h4>';
+					
+					table.innerHTML = table.innerHTML+'<tr class="odd-info-popup-row"><td style="font-weight:bold;">Total MO:</td>'+'<td>'+moi.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",")+'</td></tr>';
+					table.innerHTML = table.innerHTML+'<tr class="even-info-popup-row"><td style="font-weight:bold;">Reduced MO:</td>'+'<td>'+reduced.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",")+'</td></tr>';
+				} else if (type == 'traffic') {
+					var traffic = getUrlVars()['TotalTraffic'];
+					var reduced = getUrlVars()['ReducedTraffic'];
+					
+					title.innerHTML = segment;
+					
+					table.innerHTML = table.innerHTML+'<tr class="odd-info-popup-row"><td style="font-weight:bold;">Total Traffic:</td>'+'<td>'+traffic.toFixed().toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",")+'</td></tr>';
+					table.innerHTML = table.innerHTML+'<tr class="even-info-popup-row"><td style="font-weight:bold;">Reduced Traffic:</td>'+'<td>'+reduced.toFixed().toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",")+'</td></tr>';
+				}
+			} else if (time == 'past') {
+				if (type == 'moi') {
+					var moi = getUrlVars()['TotalMO'];
+					var campaign = getUrlVars()['Campaign'].replace(/%20/g,' ');
+					
+					title.innerHTML = segment;
+					
+					table.innerHTML = table.innerHTML+'<tr class="odd-info-popup-row"><td style="font-weight:bold;">Campaign:</td>'+'<td>'+campaign+'</td></tr>';
+					table.innerHTML = table.innerHTML+'<tr class="even-info-popup-row"><td style="font-weight:bold;">Total MO:</td>'+'<td>'+moi+'</td></tr>';
+					
+				} else if (type == 'traffic') {
+					var traffic = getUrlVars()['TotalTraffic'];
+					var campaign = getUrlVars()['Campaign'].replace(/%20/g,' ');
+					
+					title.innerHTML = segment;
+					
+					table.innerHTML = table.innerHTML+'<tr class="odd-info-popup-row"><td style="font-weight:bold;">Campaign:</td>'+'<td>'+campaign+'</td></tr>';
+					table.innerHTML = table.innerHTML+'<tr class="even-info-popup-row"><td style="font-weight:bold;">Total Traffic:</td>'+'<td>'+traffic+'</td></tr>';
+				}
+			}
+		});
+	</script>
+
+</head>
+<body>
+	<div id="title"></div>
+	<table id="table" class="info-popup-table"></table>
+</body>
+</html>
