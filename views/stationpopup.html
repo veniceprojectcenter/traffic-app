@@ -49,7 +49,7 @@
 			
 			title.innerHTML = '<h4>'+stationName+'</h4>';
 			
-			table.innerHTML = table.innerHTML+'<tr class="odd-info-popup-row"><td style="font-weight:bold;">Station Number:</td>'+'<td>'+stationNumber+'</td></tr>';
+			table.innerHTML = table.innerHTML+'<tr class="odd-info-popup-row"><td style="font-weight:bold;">Station:</td>'+'<td>'+stationNumber+'</td></tr>';
 			
 			if (peakTraffic != -1) {
 				table.innerHTML = table.innerHTML+'<tr class="even-info-popup-row"><td style="font-weight:bold;">Peak Traffic:</td>'+'<td>'+peakTraffic.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",")+'</td></tr>';
