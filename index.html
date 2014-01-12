@@ -98,6 +98,8 @@
 				var segments = [];
 				var maximum = 0;
 				var changed = true; // Do we need to redraw
+				var currentSegment = null;
+				var currentStation = null;
 				
 				
 				// Various small differences depending on traffic/moi and current/previous
@@ -170,16 +172,24 @@
 					var popup = L.popup()
 						.setLatLng(e.latlng)
 						.setContent(popupContent(globType, globTime, member))
+						.on('close', function() {
+							currentSegment = null;
+						})
 						.openOn(map);
 					console.log(popupContent(globType, globTime, member));
+					currentSegment={"popup":popup, "member": member};
 				}
 				
 				function showStationBox(e, member, marker, layer) {
 					var popup = L.popup()
 						.setLatLng(e.latlng)
 						.setContent(stationPopupContent(globType, globTime, member))
+						.on('close', function() {
+							currentStation = null;
+						})
 						.openOn(map);
 					console.log(stationPopupContent(globType, globTime, member));
+					currentStation={"popup":popup, "member": member};
 				}
 				
 				function stationPopupContent(type, time, member) {
@@ -491,26 +501,47 @@
 				function cargoChanged() {
 					$.cookie("cargo", $scope.cargoRedux);
 					changed = true;
+					if (currentSegment != null) {
+						currentSegment.popup.setContent(popupContent(globType, globTime, currentSegment.member));
+					}
 				}
 				
 				function limitChanged() {
 					$.cookie("speed", $scope.speedLimit);
 					changed = true;
+					if (currentSegment != null) {
+						currentSegment.popup.setContent(popupContent(globType, globTime, currentSegment.member));
+					}
 				}
 				
 				function taxiChanged() {
 					$.cookie("speed", $scope.taxiRedux);
 					changed = true;
+					if (currentSegment != null) {
+						currentSegment.popup.setContent(popupContent(globType, globTime, currentSegment.member));
+					}
 				}
 				
 				function campaignChanged() {
 					document.getElementById('campaignLocation').innerHTML = allCampaigns[$scope.campaignNumber].name;
 					changed = true;
+					if (currentStation != null) {
+						currentStation.popup.setContent(stationPopupContent(globType, globTime, currentStation.member));
+					}
+					if (currentSegment != null) {
+						currentSegment.popup.setContent(popupContent(globType, globTime, currentSegment.member));
+					}
 				}
 				
 				function campaignChangedTraffic() {
 					document.getElementById('campaignLocation').innerHTML = allTrafficCampaigns[$scope.campaignNumber].name;
 					changed = true;
+					if (currentStation != null) {
+						currentStation.popup.setContent(stationPopupContent(globType, globTime, currentStation.member));
+					}
+					if (currentSegment != null) {
+						currentSegment.popup.setContent(popupContent(globType, globTime, currentSegment.member));
+					}
 				}
 				
 			function createBrandBox(){
@@ -544,7 +575,7 @@
 					
 					getArguments();
 					
-					map = L.map("map-canvas", {minZoom: 14}).setView([45.436 , 12.334], 14);
+					map = L.map("map-canvas", {minZoom: 14, closePopupOnClick: false}).setView([45.436 , 12.334], 14);
 					$scope.baseLayer = new L.TileLayer(
 						'http://{s}.tiles.mapbox.com/v3/bennlich.map-8ds9rdrc/{z}/{x}/{y}.png',
 						{ attribution: 'Map tiles &copy MapBox' }
