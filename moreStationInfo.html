@@ -145,7 +145,7 @@
 						
 				
 				var map = L.map('container');
-				ckConsoleMap.createMapLayerFromGroupData(map, ckConsole.getGroup("COSES Station Locations"), function(newLayer) {
+				ckConsoleMap.createMapLayerFromGroupData(map, ckConsole.getGroup("MERGE COSES Station Locations"), function(newLayer) {
 					stations = newLayer;
 				}).then(function (newLayer){
 					stations.eachMember(function (member, marker) {
@@ -154,7 +154,7 @@
 						}
 				});
 				
-					header.innerHTML='<span class="main-title">Station '+stationData.Station+'</span>';
+					header.innerHTML=header.innerHTML+'<span class="main-title">Station '+stationData.Station+'</span>';
 					
 					var peakInfo = getDisplayData(stationData['Boat Traffic'], allCampaigns[9]);
 					information.innerHTML=information.innerHTML+'<span><p class="info-subtitle">Date</p><p class="info-info">'+peakInfo.date+'</p><p class="info-subtitle">Peak Time</p><p class="info-info">'+peakInfo.time+'</p><p class="info-subtitle">Peak Traffic</p><p class="info-info">'+peakInfo.traffic.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",")+'</p><p class="info-subtitle">Total Traffic Volume</p><p class="info-info">'+peakInfo.total.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",")+'</p></span><hr />';
@@ -183,7 +183,9 @@
 
 </head>
 <body ng-controller="DataCtrl">
-	<div id="header"></div>
+	<div id="header">
+		<img src="/back-arrow.png" style="height:50px; width:50px; float:left" onClick="window.close();" />
+	</div>
 	<div id="main-content">
 		<div id="chart">
 			<div id="chart1">
