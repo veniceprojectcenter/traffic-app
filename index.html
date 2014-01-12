@@ -59,7 +59,6 @@
 		
 		<!-- Stuff for traffic/mo data -->
 		<script type='text/javascript' src='js/trafficdata.js'></script>
-		<script type='text/javascript' src='js/stations.js'></script>
 		
 		<style>
 			.info-box {
@@ -186,7 +185,8 @@
 				function stationPopupContent(type, time, member) {
 					var peakInfo;
 					var campaign;
-					if (type == 'past') {
+					
+					if (time == 'past') {
 						peakInfo = getStationDataCampaign(member, allCampaigns[$scope.campaignNumber]);
 						campaign = allCampaigns[$scope.campaignNumber].name;
 					} else {
