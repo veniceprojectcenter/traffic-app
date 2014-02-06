@@ -32,10 +32,15 @@
 		<script type='text/javascript' src='js/angular-slider.min.js'></script>
 		
 		<style>
-			.info{
-				width:250px;
-				height:200px;
-			}
+			.info {
+	padding: 6px 8px;
+	font: 14px/16px Arial, Helvetica, sans-serif;
+	background: white;
+	background: rgba(255,255,255,0.9);
+	box-shadow: 0 0 15px rgba(0,0,0,0.2);
+	border-radius: 5px;
+	width: 320px;
+}
 			.info-form{
 				float:bottom;
 			}
@@ -105,6 +110,7 @@
 				// Various small differences depending on traffic/moi and current/previous
 				var globType = "moi"; // moi, traffic
 				var globTime = "now"; // past, now
+				var season = "all"; // spring, fall, all
 				var isSplit = false; // show the button to open the comparison window
 				
 				/** Notes
@@ -132,25 +138,23 @@
 				function getColor(range) {
 					if (range == 0) {
 						return "#FFFFFF";
-					} else if (range <= 5) {
-						return "#00FF00";
-					} else if (range <= 10) {
-						return "#33FF00";
-					} else if (range <= 13) {
+					} else if (range <= 2) {
 						return "#66FF00";
-					} else if (range <= 18) {
-						return "#99FF00";
-					} else if (range <= 25) {
-						return "#CCFF00";
-					} else if (range <= 35) {
+					} else if (range <= 5) {
+						return "#88FF00";
+					} else if (range <= 15) {
+						return "#AAFF00";
+					} else if (range <= 22) {
+						return "#DDFF00";
+					} else if (range <= 30) {
 						return "#FFFF00";
 					} else if (range <= 40) {
 						return "#FFBB00";
-					} else if (range <= 60) {
+					} else if (range <= 52) {
 						return "#FF8800";
-					} else if (range <= 80) {
+					} else if (range <= 70) {
 						return "#FF4400";
-					} else if (range <= 101) {
+					} else if (range <= 110) {
 						return "#FF0000";
 					} else {
 						return "#00FFFF";
@@ -197,8 +201,8 @@
 					var campaign;
 					
 					if (time == 'past') {
-						peakInfo = getStationDataCampaign(member, allCampaigns[$scope.campaignNumber]);
-						campaign = allCampaigns[$scope.campaignNumber].name;
+						peakInfo = getStationDataCampaign(member, allCampaigns[getAbsoluteCampaignNumber($scope.campaignNumber, season)]);
+						campaign = allCampaigns[getAbsoluteCampaignNumber($scope.campaignNumber, season)].name;
 					} else {
 						peakInfo = getStationDataCampaign(member, allCampaigns[9]);
 						campaign = allCampaigns[9].name;
@@ -208,16 +212,24 @@
 				}
 				
 				function createReductionBox(){
-					console.log("huh?");
 					var info = L.control();
 					info.onAdd = function (map) {
 					var htmlContent = '<div class="info-box"><h4 id="box-title"></h4>';
 					if (globTime == 'now') {
 						htmlContent = htmlContent +
-						'<p><span style="display:block"><span id="box-label" style="font-weight:bold;"></span>{{boxInfo}}%</span></p>'+
-						'</div>';
+						'<p><span style="display:block"><span id="box-label" style="font-weight:bold;"></span>{{boxInfo}}%</span></p>';
+						if (globType == 'moi') {
+							htmlContent = htmlContent + '<p>Moto Ondoso Index<img src="/moiLegend.png" /></p>';
+						} else if (globType == 'traffic') {
+							htmlContent = htmlContent + '<p>Number of Boats<img src="/trafficLegend.png" /></p>';
+						}
+						htmlContent = htmlContent + '</div>';
 					} else {
-						console.log("and it added it");
+						if (globType == 'moi') {
+							htmlContent = htmlContent + '<p><img src="/moiLegend.png" /></p>';
+						} else if (globType == 'traffic') {
+							htmlContent = htmlContent + '<p><img src="/trafficLegend.png" /></p>';
+						}
 						htmlContent = htmlContent + '</div>';
 						console.log(htmlContent);
 					}
@@ -258,7 +270,6 @@
 				 function getTotalSegment(type, time, info) {
 				 if (time == 'now') {
 						if (type == 'moi') {
-							//console.log("well fuck you then");
 							return getTotalSegmentRedux(info.seg, info.cargo, info.speed, info.taxi, info.length, true);
 						} else if (type == 'traffic') {
 							return getTotalSegmentRedux(info.seg, info.cargo, 0, info.taxi, 0, false);
@@ -289,7 +300,8 @@
 								campaignPage = campaignPage + "&isSplit=true'";
 								trafficPage = trafficPage + "&isSplit=true'";
 							}
-							return '<div class="info-box">'+'<p><h4>Moto Ondoso Reductions</h4></p>'+'<p><h5 style="margin:0px;">Cargo boats ({{cargoRedux}}%):</h5><slider floor="0" ceiling="100" step="1" precision="0" ng-model="cargoRedux"></slider></p>'+'<p><h5 style="margin:0px;">Speed Limit ({{speedLimit}}%):</h5><slider floor="0" ceiling="100" step="1" precision="0" ng-model="speedLimit"></slider></p>'+'<p><h5 style="margin:0px;">Taxi Reduction ({{taxiRedux}}%):</h5><slider floor="0" ceiling="100" step="1" precision="0" ng-model="taxiRedux"></slider></p>'+'<form class="info-form"><input class="info-button" type="button" value="Show Campaigns" onClick="window.location.assign('+campaignPage+');" /><input class="info-button" type="button" value="Boat Traffic" onClick="window.location.assign('+trafficPage+');" />'+splitPage+'</form>'+'</div>';
+							
+							return '<div class="info-box">'+'<p><h4>Moto Ondoso Reductions</h4></p>'+'<p><h5 style="margin:0px;">Cargo boats ({{cargoRedux}}%):</h5><div id="cargo"><slider floor="0" ceiling="100" step="1" precision="0" ng-model="cargoRedux"></slider></div></p>'+'<p><h5 style="margin:0px;">Speed Limit ({{speedLimit}}%):</h5><slider id="speed" floor="0" ceiling="100" step="1" precision="0" ng-model="speedLimit"></slider></p>'+'<p><h5 style="margin:0px;">Taxi Reduction ({{taxiRedux}}%):</h5><slider id="taxi" floor="0" ceiling="100" step="1" precision="0" ng-model="taxiRedux"></slider></p>'+'<form class="info-form"><input class="info-button" type="button" value="Show Campaigns" onClick="window.location.assign('+campaignPage+');" /><input class="info-button" type="button" value="Boat Traffic" onClick="window.location.assign('+trafficPage+');" />'+splitPage+'</form>'+'</div>';
 						} else if (type == 'traffic') {
 							var campaignPage="'index.html?showPast=true&showTraffic=true";
 							var moiPage="'index.html?showPresent=true&showMOI=true";
@@ -308,8 +320,25 @@
 					} else if (time == 'past') {
 						if (type == 'moi') {
 							var nowPage="'index.html?showPresent=true&showMOI=true";
-							var trafficPage="'index.html?showPast=true&showTraffic=true";
-							var splitPage="'splitscreen.html?showPast=true&showTraffic=true'";
+							var trafficPage="'index.html?showPast=true&showTraffic=true&whichCampaigns="+season;
+							var splitPage="'splitscreen.html?showPast=true&showMOI=true&whichCampaigns="+season+"'";
+							
+							var showFall="'index.html?showPast=true&showMOI=true&whichCampaigns=fall'";
+							var showSpring="'index.html?showPast=true&showMOI=true&whichCampaigns=spring'";
+							var showAll="'index.html?showPast=true&showMOI=true&whichCampaigns=all'";
+							var firstText = "Show Fall";
+							var firstURL = showFall;
+							var secondText = "ShowSpring";
+							var secondURL = showSpring;
+							
+							if (season == 'spring') {
+								secondText = "Show All";
+								secondURL = showAll;
+							} else if (season == 'fall') {
+								firstText = "Show All";
+								firstURL = showAll;
+							}
+							
 							if (!isSplit) {
 								splitPage = splitFront + splitPage + splitBack;
 								nowPage = nowPage + "'";
@@ -319,11 +348,36 @@
 								nowPage = nowPage + "&isSplit=true'";
 								trafficPage = trafficPage + "&isSplit=true'";
 							}
-							return '<div class="info-box">'+'<p><h4>Campaigns</h4></p>'+'<p><h5 id="campaignLocation" style="margin:0px; width=100px">Campaign ({{campaignNumber}}):</h5><slider floor="0" ceiling="9" step="1" precision="0" ng-model="campaignNumber"></slider></p>'+'<form class="info-form"><input class="info-button" type="button" value="Show Present" onClick="window.location.assign('+nowPage+');" /><input class="info-button" type="button" value="Boat Traffic" onClick="window.location.assign('+trafficPage+');" />'+splitPage+'</form>'+'</div>';
+							
+							var ceiling = allCampaigns.length - 1;
+							if (season == 'spring') {
+								ceiling = springCampaigns.length - 1;
+							} else if (season == 'fall') {
+								ceiling = fallCampaigns.length - 1;
+							}
+							
+							return '<div class="info-box">'+'<p><h4>Campaigns</h4></p>'+'<p><h5 id="campaignLocation" style="margin:0px; width=100px">Campaign ({{campaignNumber}}):</h5><slider floor="0" ceiling="'+ceiling+'" step="1" precision="0" ng-model="campaignNumber"></slider></p>'+'<form class="info-form"><input class="info-button" type="button" value="'+firstText+'" onClick="window.location.assign('+firstURL+');" /><input class="info-button" type="button" value="'+secondText+'" onClick="window.location.assign('+secondURL+');" /></form>'+'<form class="info-form"><input class="info-button" type="button" value="Show Present" onClick="window.location.assign('+nowPage+');" /><input class="info-button" type="button" value="Boat Traffic" onClick="window.location.assign('+trafficPage+');" />'+splitPage+'</form>'+'</div>';
 						} else if (type == 'traffic') {
 							var newPage="'index.html?showPresent=true&showTraffic=true";
-							var moiPage="'index.html?showPast=true&showMOI=true";
-							var splitPage="'splitscreen.html?showPast=true&showTraffic=true'";
+							var moiPage="'index.html?showPast=true&showMOI=true&whichCampaigns="+season;
+							var splitPage="'splitscreen.html?showPast=true&showTraffic=true&whichCampaigns="+season+"'";
+							
+							var showFall="'index.html?showPast=true&showTraffic=true&whichCampaigns=fall'";
+							var showSpring="'index.html?showPast=true&showTraffic=true&whichCampaigns=spring'";
+							var showAll="'index.html?showPast=true&showTraffic=true&whichCampaigns=all'";
+							var firstText = "Show Fall";
+							var firstURL = showFall;
+							var secondText = "ShowSpring";
+							var secondURL = showSpring;
+							
+							if (season == 'spring') {
+								secondText = "Show All";
+								secondURL = showAll;
+							} else if (season == 'fall') {
+								firstText = "Show All";
+								firstURL = showAll;
+							}
+							
 							if (!isSplit) {
 								splitPage = splitFront + splitPage + splitBack;
 								newPage = newPage + "'";
@@ -333,7 +387,15 @@
 								newPage = newPage + "&isSplit=true'";
 								moiPage = moiPage + "&isSplit=true'";
 							}
-							return '<div class="info-box">'+'<p><h4>Campaign Traffic</h4></p>'+'<p><h5 id="campaignLocation" style="margin:0px; width=100px">Campaign ({{campaignNumber}}):</h5><slider floor="0" ceiling="9" step="1" precision="0" ng-model="campaignNumber"></slider></p>'+'<form class="info-form"><input class="info-button" type="button" value="Show Present" onClick="window.location.assign('+newPage+');" /><input class="info-button" type="button" value="Moto Ondoso" onClick="window.location.assign('+moiPage+');" />'+splitPage+'</form>'+'</div>';
+							
+							var ceiling = allTrafficCampaigns.length - 1;
+							if (season == 'spring') {
+								ceiling = springTrafficCampaigns.length - 1;
+							} else if (season == 'fall') {
+								ceiling = fallTrafficCampaigns.length - 1;
+							}
+							
+							return '<div class="info-box">'+'<p><h4>Campaign Traffic</h4></p>'+'<p><h5 id="campaignLocation" style="margin:0px; width=100px">Campaign ({{campaignNumber}}):</h5><slider floor="0" ceiling="'+ceiling+'" step="1" precision="0" ng-model="campaignNumber"></slider></p>'+'<form class="info-form"><input class="info-button" type="button" value="'+firstText+'" onClick="window.location.assign('+firstURL+');" /><input class="info-button" type="button" value="'+secondText+'" onClick="window.location.assign('+secondURL+');" /></form>'+'<form class="info-form"><input class="info-button" type="button" value="Show Present" onClick="window.location.assign('+newPage+');" /><input class="info-button" type="button" value="Moto Ondoso" onClick="window.location.assign('+moiPage+');" />'+splitPage+'</form>'+'</div>';
 						}
 					}
 				}
@@ -354,12 +416,12 @@
 						}
 					} else if (time == 'past') {
 						if (type == 'moi') {
-							var moi = getTotalSegment(type, time, {"seg":{"name":segname}, 'campaignNumber':$scope.campaignNumber}) * moiCampaignMult;
-							var campaign = allCampaigns[$scope.campaignNumber].name;
+							var moi = getTotalSegment(type, time, {"seg":{"name":segname}, 'campaignNumber':getAbsoluteCampaignNumber($scope.campaignNumber, season)}) * moiCampaignMult;
+							var campaign = allCampaigns[getAbsoluteCampaignNumber($scope.campaignNumber, season)].name;
 							return '<iframe src="/views/infopopup.html?Type='+type+'&Time='+time+'&Segment='+segname+'&TotalMO='+moi.toFixed()+'&Campaign='+campaign+'" height="100" class="infoPopup" scrolling="no" />';
 						} else if (type == 'traffic') {
-							var traffic = getTotalSegment(type, time, {"seg":{"name":segname}, 'campaignNumber':$scope.campaignNumber}) * trafficCampaignMult;
-							var campaign = allCampaigns[$scope.campaignNumber].name;
+							var traffic = getTotalSegment(type, time, {"seg":{"name":segname}, 'campaignNumber':getAbsoluteCampaignNumber($scope.campaignNumber, season)}) * trafficCampaignMult;
+							var campaign = allCampaigns[getAbsoluteCampaignNumber($scope.campaignNumber, season)].name;
 							return '<iframe src="/views/infopopup.html?Type='+type+'&Time='+time+'&Segment='+segname+'&TotalTraffic='+traffic.toFixed()+'&Campaign='+campaign+'" height="100" class="infoPopup" scrolling="no" />';
 						}
 					}
@@ -423,6 +485,11 @@
 					if (tmp == 'true') {
 						isSplit = true;
 					}
+					
+					tmp = getUrlVars()['whichCampaigns'];
+					if (tmp == 'spring' || tmp == 'fall' || tmp == 'all') {
+						season = tmp;
+					}
 				}
 				
 /*
@@ -432,7 +499,7 @@
 					if ($scope && segmentLayer) {
 						for (var i in segments) {
 								if (segments[i].marker) {
-								var num = getTotalSegment(globType, globTime, {'seg':segments[i], 'campaignNumber':$scope.campaignNumber});
+								var num = getTotalSegment(globType, globTime, {'seg':segments[i], 'campaignNumber':getAbsoluteCampaignNumber($scope.campaignNumber, season)});
 								if (num > 0) {
 									segments[i].marker.setStyle({
 										fillColor: getColor(num),
@@ -523,7 +590,14 @@
 				}
 				
 				function campaignChanged() {
-					document.getElementById('campaignLocation').innerHTML = allCampaigns[$scope.campaignNumber].name;
+					if (season == 'spring') {
+						document.getElementById('campaignLocation').innerHTML = springCampaigns[$scope.campaignNumber].name;
+					} else if (season == 'fall') {
+						document.getElementById('campaignLocation').innerHTML = fallCampaigns[$scope.campaignNumber].name;
+					} else if (season == 'all') {
+						document.getElementById('campaignLocation').innerHTML = allCampaigns[$scope.campaignNumber].name;
+					}
+					
 					changed = true;
 					if (currentStation != null) {
 						currentStation.popup.setContent(stationPopupContent(globType, globTime, currentStation.member));
@@ -534,7 +608,13 @@
 				}
 				
 				function campaignChangedTraffic() {
-					document.getElementById('campaignLocation').innerHTML = allTrafficCampaigns[$scope.campaignNumber].name;
+					if (season == 'spring') {
+						document.getElementById('campaignLocation').innerHTML = springTrafficCampaigns[$scope.campaignNumber].name;
+					} else if (season == 'fall') {
+						document.getElementById('campaignLocation').innerHTML = fallTrafficCampaigns[$scope.campaignNumber].name;
+					} else if (season == 'all') {
+						document.getElementById('campaignLocation').innerHTML = allTrafficCampaigns[$scope.campaignNumber].name;
+					}
 					changed = true;
 					if (currentStation != null) {
 						currentStation.popup.setContent(stationPopupContent(globType, globTime, currentStation.member));
@@ -544,11 +624,11 @@
 					}
 				}
 				
-			function createBrandBox(){
+				function createBrandBox(){
 				var info = L.control({position: "bottomleft"});
 				info.onAdd = function (map) {
-					var htmlContent = '<div class="info" style="height:30px; width:auto;">'+
-						'<span ng-click="showAbout()"><img src="about.png" style="cursor:pointer;padding-right:7px;"></span>'+
+					var htmlContent = '<div class="info" style="width:auto;">'+
+						'<span ng-click="showAbout()"><img src="about.png" style="cursor:pointer;padding-right:7px"></span>'+
 						'<a href="http://veniceprojectcenter.org"><img src="vpc25logo.png"></a>'+
 						'</div>';
 					$scope.compiled = $compile(htmlContent)($scope);
@@ -593,9 +673,21 @@
 						}
 					} else if (globTime == 'past') {
 						if (globType == 'moi') {
-							document.getElementById('box-title').innerHTML = 'Moto Ondoso of Past Campaigns';
+							if (season == 'spring') {
+								document.getElementById('box-title').innerHTML = 'Moto Ondoso of Past Spring Campaigns';
+							} else if (season == 'fall') {
+								document.getElementById('box-title').innerHTML = 'Moto Ondoso of Past Fall Campaigns';
+							} else if (season == 'all') {
+								document.getElementById('box-title').innerHTML = 'Moto Ondoso of Past Campaigns';
+							}
 						} else if (globType == 'traffic') {
-							document.getElementById('box-title').innerHTML = 'Traffic from Past Campaigns';
+							if (season == 'spring') {
+								document.getElementById('box-title').innerHTML = 'Traffic from Past Spring Campaigns';
+							} else if (season == 'fall') {
+								document.getElementById('box-title').innerHTML = 'Traffic from Past Fall Campaigns';
+							} else if (season == 'all') {
+								document.getElementById('box-title').innerHTML = 'Traffic from Past Campaigns';
+							}
 						}
 					}
 						
@@ -658,6 +750,25 @@
 				});
 			}]);
 		</script>
+
+	<script type="text/javascript">
+
+	/*GOOGLE ANALYTICS*/
+
+	  var _gaq = _gaq || [];
+	  _gaq.push(['_setAccount', 'UA-47662945-1']);
+	  _gaq.push(['_setDomainName', 'veniceprojectcenter.org']);
+	  _gaq.push(['_trackPageview']);
+	
+	  (function() {
+	    var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+	    ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+	    var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+	  })();
+
+	</script>
+
+
 	</head>
 	<body ng-controller="DataCtrl">
 		<div style="position:absolute;width:100%;height:100%;">
@@ -669,12 +780,7 @@
 			<div style="position:absolute;left:50%;top:50%;" id="spinner"></div>
 		</div>
 		<div ng-click="hideAbout()" style="position:absolute;top:0px;left:0px;width:100%;height:100%;z-index:2000;background-color:rgba(0,0,0,0.5);" id="aboutPanel">
-			<div class="info" style="position: absolute;top: 50%;left: 50%;margin-top: -250px;margin-left: -250px;height: 500px;width:500px;overflow:auto;padding:5px" id="about">
-				<h1 style="color:white;">Traffic and Moto Ondoso Visualizer</h1>
-				<p style="color:white;">This application lets you examine traffic data and moto ondoso from several past campaigns conducted by COSES.
-										The sliders let you to adjust which campaign you are viewing or see the effect of various potential reduction plans</p>
-				<img style="position:absolute;bottom:5px;left:5px;" src="wpi_logo.png">
-			</div>
+				<iframe class="info" style="position: absolute;top: 50%;left: 50%;margin-top: -350px;margin-left: -450px;height: 700px;width:900px;overflow:auto;padding:5px" id="about" src="https://docs.google.com/document/d/1enlSFijbpqSlv51sl4BWbmfcafImeyspo2_DqLRnx_Y/pub?embedded=true"></iframe>\
 		</div>
 	</body>
 </html>
