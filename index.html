@@ -16,8 +16,8 @@
 		<script src="https://ajax.googleapis.com/ajax/libs/jquery/1.10.2/jquery.min.js"></script>
 		
 		<!-- Leaflet -->
-		<script src="http://cdn.leafletjs.com/leaflet-0.6.4/leaflet.js"></script>
-		<link rel="stylesheet" href="http://cdn.leafletjs.com/leaflet-0.6.4/leaflet.css" />
+		<script src="https://unpkg.com/leaflet@0.6.4/dist/leaflet.js"></script>
+		<link rel="stylesheet" href="https://unpkg.com/leaflet@0.6.4/dist/leaflet.css" />
 		
 		<!-- bootstrap -->
 		<link rel="stylesheet" type="text/css" href="css/bootstrap.min.css"/>
@@ -780,9 +780,9 @@
 					
 					map = L.map("map-canvas", {minZoom: 14, closePopupOnClick: false}).setView([45.436 , 12.334], 14);
 					$scope.baseLayer = new L.TileLayer(
-						'http://{s}.tiles.mapbox.com/v3/bennlich.map-8ds9rdrc/{z}/{x}/{y}.png',
-						{ attribution: 'Map tiles &copy MapBox' }
-						).addTo(map);
+						'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+						{ attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors' }
+					).addTo(map);
 					L.control.scale().addTo(map);
 					
 					createReductionBox().addTo(map);
