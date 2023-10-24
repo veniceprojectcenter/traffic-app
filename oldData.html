@@ -14,8 +14,8 @@
 		<script src="https://ajax.googleapis.com/ajax/libs/jquery/1.10.2/jquery.min.js"></script>
 		
 		<!-- Leaflet -->
-		<script src="http://cdn.leafletjs.com/leaflet-0.6.4/leaflet.js"></script>
-		<link rel="stylesheet" href="http://cdn.leafletjs.com/leaflet-0.6.4/leaflet.css" />
+		<script src="https://cdn.leafletjs.com/leaflet-0.6.4/leaflet.js"></script>
+		<link rel="stylesheet" href="https://cdn.leafletjs.com/leaflet-0.6.4/leaflet.css" />
 		
 		<!-- bootstrap -->
 		<link rel="stylesheet" type="text/css" href="css/bootstrap.min.css"/>
@@ -23,7 +23,7 @@
 		<script type='text/javascript' src='js/bootstrap.min.js'></script>
 		
 		<!-- angularjs -->
-		<script src="http://ajax.googleapis.com/ajax/libs/angularjs/1.2.0/angular.min.js"></script>
+		<script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.2.0/angular.min.js"></script>
 		
 		<!-- angular slider -->
 		<link rel="stylesheet" type="text/css" href="css/angular-slider.min.css"/>
@@ -67,7 +67,7 @@
 			$(document).ready(function() {
 				map = L.map("map-canvas", {minZoom: 14}).setView([45.436 , 12.334], 14);
 				baseLayer = new L.TileLayer(
-					'http://{s}.tiles.mapbox.com/v3/bennlich.map-8ds9rdrc/{z}/{x}/{y}.png',
+					'https://{s}.tiles.mapbox.com/v3/bennlich.map-8ds9rdrc/{z}/{x}/{y}.png',
 					{ attribution: 'Map tiles © MapBox' }
 					).addTo(map);
 				L.control.scale().addTo(map);
